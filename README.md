@@ -1,8 +1,6 @@
 # Battery Watts
 
-A minimal Plasma 6 plasmoid that reads your battery's **real-time power draw in watts** from sysfs and shows it in your panel. No daemon, no Electron, no random dependencies.
-
-Comes with a **prebuilt x86_64 binary** — no build tools needed!
+A minimal Plasma 6 plasmoid that reads your battery's **real-time power draw in watts** from sysfs and shows it in your panel.
 
 ## Features
 
