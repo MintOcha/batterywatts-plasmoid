@@ -4,7 +4,7 @@ set -e
 # Battery Watts Plasmoid - Install Script
 # Works with the prebuilt binary — no build tools needed on x86_64!
 
-PLASMOID_DIR="$HOME/.local/share/plasma/plasmoids/com.minttea.batterywatts"
+PLASMOID_DIR="$HOME/.local/share/plasma/plasmoids/com.mintocha.batterywatts"
 QML_PLUGIN_DIR="$HOME/.local/lib/qt6/qml/BatteryWatts"
 
 echo "==> Installing Battery Watts plasmoid..."

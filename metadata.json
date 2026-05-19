@@ -1,12 +1,12 @@
 {
   "KPlugin": {
-    "Id": "com.minttea.batterywatts",
+    "Id": "com.mintocha.batterywatts",
     "Name": "Battery Watts",
     "Description": "Shows battery charging or discharging power in watts",
     "Version": "0.1",
     "Authors": [
       {
-        "Name": "MintTea"
+        "Name": "MintOcha"
       }
     ],
     "Category": "System Information",
