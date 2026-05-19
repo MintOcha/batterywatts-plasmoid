@@ -2,6 +2,8 @@
 
 A minimal Plasma 6 plasmoid that reads your battery's **real-time power draw in watts** from sysfs and shows it in your panel. No daemon, no Electron, no random dependencies.
 
+Comes with a **prebuilt x86_64 binary** — no build tools needed!
+
 ## Features
 
 - **Panel widget** — compact display of current power draw with auto-fitting text
@@ -21,17 +23,48 @@ A minimal Plasma 6 plasmoid that reads your battery's **real-time power draw in 
 ## Requirements
 
 - **Plasma 6** (tested on 6.6.x)
-- **Qt 6** with QtQml
-- **g++** and **qmake6** (to build the native plugin)
 - **Linux** with a battery at `/sys/class/power_supply/BAT*`
+
+Optional (only if building from source):
+- **Qt 6** with QtQml headers
+- **g++** and **qmake6**
 
 ## Installation
 
-### Method 1: Install via git clone + build (recommended)
+### Method 1: Install script (easiest — prebuilt binary)
 
 ```bash
-# Clone the repo
-git clone https://github.com/MintTea/batterywatts-plasmoid.git
+git clone https://github.com/MintOcha/batterywatts-plasmoid.git
+cd batterywatts-plasmoid
+chmod +x install.sh
+./install.sh
+kquitapp6 plasmashell && sleep 2 && kstart plasmashell
+```
+
+Then right-click your panel → **Enter Edit Mode** → **Add Widgets** → search for "Battery Watts".
+
+### Method 2: Manual install (prebuilt)
+
+```bash
+git clone https://github.com/MintOcha/batterywatts-plasmoid.git
+cd batterywatts-plasmoid
+
+# Install the plasmoid
+kpackagetool6 --type Plasma/Applet --install .
+
+# Install the native QML plugin
+mkdir -p ~/.local/lib/qt6/qml/BatteryWatts
+cp contents/code/libbatteryplugin.so ~/.local/lib/qt6/qml/BatteryWatts/
+cp contents/code/qmldir ~/.local/lib/qt6/qml/BatteryWatts/
+
+# Restart Plasma
+kquitapp6 plasmashell && sleep 2 && kstart plasmashell
+```
+
+### Method 3: Build from source
+
+```bash
+git clone https://github.com/MintOcha/batterywatts-plasmoid.git
 cd batterywatts-plasmoid
 
 # Build the native plugin
@@ -43,25 +76,14 @@ cd ../..
 # Install the plasmoid
 kpackagetool6 --type Plasma/Applet --install .
 
-# Install the QML plugin to your user QML path
+# Install the QML plugin
 mkdir -p ~/.local/lib/qt6/qml/BatteryWatts
-cp contents/code/qmldir ~/.local/lib/qt6/qml/BatteryWatts/
 cp contents/code/libbatteryplugin.so ~/.local/lib/qt6/qml/BatteryWatts/
+cp contents/code/qmldir ~/.local/lib/qt6/qml/BatteryWatts/
 
-# Restart Plasma to pick up the new widget
+# Restart Plasma
 kquitapp6 plasmashell && sleep 2 && kstart plasmashell
 ```
-
-Then right-click your panel → **Enter Edit Mode** → **Add Widgets** → search for "Battery Watts".
-
-### Method 2: Install from KDE Store / Plasma Widget Explorer
-
-*(Coming soon — once the widget is published to the KDE Store)*
-
-1. Right-click your panel → **Enter Edit Mode** → **Add Widgets**
-2. Click **Get New Widgets** → **Download New Plasma Widgets**
-3. Search for **"Battery Watts"**
-4. Click **Install**
 
 ## Format Templates
 

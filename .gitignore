@@ -1,4 +1,5 @@
 contents/code/*.so
+!contents/code/libbatteryplugin.so
 contents/code/*.o
 contents/code/moc_*
 contents/code/Makefile
