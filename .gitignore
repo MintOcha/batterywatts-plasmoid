@@ -9,3 +9,6 @@ contents/code/plugins.qmltypes
 contents/code/*_metatypes.json
 contents/code/*_qmltyperegistrations.cpp
 contents/code/moc_predefs.h
+
+# maintainer notes — not for public repo
+INFO.md
