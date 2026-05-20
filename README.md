@@ -83,6 +83,35 @@ cp contents/code/qmldir ~/.local/lib/qt6/qml/BatteryWatts/
 kquitapp6 plasmashell && sleep 2 && kstart plasmashell
 ```
 
+### Method 4: Download + kpackagetool6
+
+```bash
+# Download the packaged plasmoid
+curl -LO https://github.com/MintOcha/batterywatts-plasmoid/releases/download/v0.1/com.mintocha.batterywatts-0.1.tar.gz
+
+# Install it
+kpackagetool6 --type Plasma/Applet -i com.mintocha.batterywatts-0.1.tar.gz
+
+# Install the native QML plugin
+mkdir -p ~/.local/lib/qt6/qml/BatteryWatts
+tar -xzf com.mintocha.batterywatts-0.1.tar.gz -C /tmp/plasmoid-extract
+cp /tmp/plasmoid-extract/contents/code/libbatteryplugin.so ~/.local/lib/qt6/qml/BatteryWatts/
+cp /tmp/plasmoid-extract/contents/code/qmldir ~/.local/lib/qt6/qml/BatteryWatts/
+rm -rf /tmp/plasmoid-extract
+
+# Restart Plasma
+kquitapp6 plasmashell && sleep 2 && kstart plasmashell
+```
+
+### Method 5: From Plasma's widget explorer
+
+1. Right-click your panel → **Enter Edit Mode**
+2. Click **Add Widgets**
+3. Click **Get New Widgets** → **Download New Plasma Widgets**
+4. Search for **"battery-power-watts"**
+5. Click **Install**
+6. Find "Battery Watts" in your widget list and drag it to the panel
+
 ## Format Templates
 
 Each battery state has its own format string. Use `{watts}` as a placeholder for the numeric value:
