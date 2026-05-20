@@ -12,3 +12,6 @@ contents/code/moc_predefs.h
 
 # maintainer notes — not for public repo
 INFO.md
+
+# don't commit built tarballs
+*.tar.gz
