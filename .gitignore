@@ -1,15 +1,3 @@
-contents/code/*.so
-!contents/code/libbatteryplugin.so
-contents/code/*.o
-contents/code/moc_*
-contents/code/Makefile
-contents/code/.qmake.stash
-contents/code/*.moc
-contents/code/plugins.qmltypes
-contents/code/*_metatypes.json
-contents/code/*_qmltyperegistrations.cpp
-contents/code/moc_predefs.h
-
 # local tooling — not for public repo
 pipeline.sh
 INFO.md

@@ -20,16 +20,12 @@ A minimal Plasma 6 plasmoid that reads your battery's **real-time power draw in 
 
 ## Requirements
 
-- **Plasma 6** (tested on 6.6.x)
-- **Linux** with a battery at `/sys/class/power_supply/BAT*`
-
-Optional (only if building from source):
-- **Qt 6** with QtQml headers
-- **g++** and **qmake6**
+- **Plasma 6**
+- **Linux** with a battery at `/sys/class/power_supply/*/`
 
 ## Installation
 
-### Method 1: Install script (easiest — prebuilt binary)
+### Method 1: Install script
 
 ```bash
 git clone https://github.com/MintOcha/batterywatts-plasmoid.git
@@ -41,69 +37,24 @@ kquitapp6 plasmashell && sleep 2 && kstart plasmashell
 
 Then right-click your panel → **Enter Edit Mode** → **Add Widgets** → search for "Battery Watts".
 
-### Method 2: Manual install (prebuilt)
+### Method 2: kpackagetool6
 
 ```bash
 git clone https://github.com/MintOcha/batterywatts-plasmoid.git
 cd batterywatts-plasmoid
-
-# Install the plasmoid
 kpackagetool6 --type Plasma/Applet --install .
-
-# Install the native QML plugin
-mkdir -p ~/.local/lib/qt6/qml/BatteryWatts
-cp contents/code/libbatteryplugin.so ~/.local/lib/qt6/qml/BatteryWatts/
-cp contents/code/qmldir ~/.local/lib/qt6/qml/BatteryWatts/
-
-# Restart Plasma
 kquitapp6 plasmashell && sleep 2 && kstart plasmashell
 ```
 
-### Method 3: Build from source
+### Method 3: Download tarball
 
 ```bash
-git clone https://github.com/MintOcha/batterywatts-plasmoid.git
-cd batterywatts-plasmoid
-
-# Build the native plugin
-cd contents/code
-qmake6 batteryplugin.pro
-make
-cd ../..
-
-# Install the plasmoid
-kpackagetool6 --type Plasma/Applet --install .
-
-# Install the QML plugin
-mkdir -p ~/.local/lib/qt6/qml/BatteryWatts
-cp contents/code/libbatteryplugin.so ~/.local/lib/qt6/qml/BatteryWatts/
-cp contents/code/qmldir ~/.local/lib/qt6/qml/BatteryWatts/
-
-# Restart Plasma
+curl -LO https://github.com/MintOcha/batterywatts-plasmoid/releases/download/v0.2/com.mintocha.batterywatts-0.2.tar.gz
+kpackagetool6 --type Plasma/Applet -i com.mintocha.batterywatts-0.2.tar.gz
 kquitapp6 plasmashell && sleep 2 && kstart plasmashell
 ```
 
-### Method 4: Download + kpackagetool6
-
-```bash
-# Download the packaged plasmoid
-curl -LO https://github.com/MintOcha/batterywatts-plasmoid/releases/download/v0.1/com.mintocha.batterywatts-0.1.tar.gz
-
-# Install it
-kpackagetool6 --type Plasma/Applet -i com.mintocha.batterywatts-0.1.tar.gz
-
-# Install the native QML plugin
-mkdir -p ~/.local/lib/qt6/qml/BatteryWatts
-tar -xzf com.mintocha.batterywatts-0.1.tar.gz -C /tmp/plasmoid-extract
-cp /tmp/plasmoid-extract/contents/code/libbatteryplugin.so ~/.local/lib/qt6/qml/BatteryWatts/
-cp /tmp/plasmoid-extract/contents/code/qmldir ~/.local/lib/qt6/qml/BatteryWatts/
-rm -rf /tmp/plasmoid-extract
-
-# Restart Plasma
-kquitapp6 plasmashell && sleep 2 && kstart plasmashell
-```
-
-### Method 5: From Plasma's widget explorer
+### Method 4: From Plasma's widget explorer
 
 1. Right-click your panel → **Enter Edit Mode**
 2. Click **Add Widgets**
@@ -125,11 +76,11 @@ Each battery state has its own format string. Use `{watts}` as a placeholder for
 
 ## How it works
 
-The widget uses a small C++ plugin that reads from:
+The widget uses `Plasma5Support.DataSource` with the `executable` engine to read from sysfs:
 
 ```
-/sys/class/power_supply/BAT*/power_now   (in microwatts → divided by 1,000,000)
-/sys/class/power_supply/BAT*/status      (Charging / Discharging / Full)
+/sys/class/power_supply/*/power_now   (in microwatts → divided by 1,000,000)
+/sys/class/power_supply/*/status      (Charging / Discharging / Full)
 ```
 
 The battery is auto-discovered — no configuration needed.
