@@ -59,7 +59,7 @@ kquitapp6 plasmashell && sleep 2 && kstart plasmashell
 1. Right-click your panel → **Enter Edit Mode**
 2. Click **Add Widgets**
 3. Click **Get New Widgets** → **Download New Plasma Widgets**
-4. Search for **"battery-power-watts"**
+4. Search for **"battery-power-watts (or Battery Powe Watts)"**
 5. Click **Install**
 6. Find "Battery Watts" in your widget list and drag it to the panel
 
@@ -74,16 +74,9 @@ Each battery state has its own format string. Use `{watts}` as a placeholder for
 | Full | `✓ {watts} W` | ✓ 0.0 W |
 | Not charging | `🔌 {watts} W` | 🔌 0.5 W |
 
-## How it works
+## Author notes
 
-The widget uses `Plasma5Support.DataSource` with the `executable` engine to read from sysfs:
-
-```
-/sys/class/power_supply/*/power_now   (in microwatts → divided by 1,000,000)
-/sys/class/power_supply/*/status      (Charging / Discharging / Full)
-```
-
-The battery is auto-discovered — no configuration needed.
+Part of this code is AI assisted (mainly for cleanliness and debugging) smh i hate claude claiming all the credit after fixing like 3 lines and running git push
 
 ## License
 
