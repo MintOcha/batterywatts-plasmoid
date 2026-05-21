@@ -90,15 +90,18 @@ PlasmoidItem {
     }
 
     function refresh() {
-        var s = batterySource.connectedSources
+        batteryPath = ""
+        noBattery = false
+        batteryEntries = []
+        probeIdx = 0
         batterySource.connectedSources = []
-        batterySource.connectedSources = s
+        batterySource.connectedSources = ["ls /sys/class/power_supply/"]
     }
 
     function roundedSignificant(value, digits) {
-        if (value === 0) return "0";
+        if (value === 0) return Number(0).toFixed(digits - 1);
         const places = Math.max(0, digits - Math.floor(Math.log10(Math.abs(value))) - 1);
-        return Number(value).toFixed(places).replace(/\.?0+$/, "");
+        return Number(value).toFixed(places);
     }
 
     function formattedWatts() {
@@ -162,6 +165,10 @@ PlasmoidItem {
         property string dischargingFormat: root.defaultDischargingFormat
         property string fullFormat: root.defaultFullFormat
         property string otherFormat: root.defaultOtherFormat
+
+        onPollingSecondsChanged: {
+            root.refresh();
+        }
     }
 
     compactRepresentation: Item {
