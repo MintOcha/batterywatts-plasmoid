@@ -3,7 +3,7 @@
     "Id": "com.mintocha.batterywatts",
     "Name": "Battery Watts",
     "Description": "Shows battery charging or discharging power in watts",
-    "Version": "0.2.1",
+    "Version": "0.2.2",
     "Authors": [
       {
         "Name": "MintOcha"

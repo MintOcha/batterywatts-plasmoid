@@ -167,7 +167,9 @@ PlasmoidItem {
         property string otherFormat: root.defaultOtherFormat
 
         onPollingSecondsChanged: {
-            root.refresh();
+            var s = batterySource.connectedSources;
+            batterySource.connectedSources = [];
+            batterySource.connectedSources = s;
         }
     }
 
