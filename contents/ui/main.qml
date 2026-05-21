@@ -29,17 +29,11 @@ PlasmoidItem {
         id: batterySource
         engine: "executable"
         connectedSources: []
-        interval: settings.pollingSeconds * 1000
+        interval: 0
 
         onNewData: (source, data) => {
             var out = String(data["stdout"] || "").trim()
 
-            // Based on the value of source and batteryPath, the code does different things
-            // First: connected sources is command - runs it and obtains battery entries (runs ONCE)
-            // Second: calls probenext, sets source to batterypath type (runs probing)
-            // Third: Once a battery is found, schedule a poll and poll it.
-
-            // phase 1: got ls output, store entries and start probing
             if (source === "ls /sys/class/power_supply/") {
                 batteryEntries = out.split(/\s+/).filter(function(e) { return e.length > 0 })
                 noBattery = batteryEntries.length === 0
@@ -47,55 +41,67 @@ PlasmoidItem {
                     probeIdx = 0
                     probeNext()
                 }
+                disconnectSource(source)
                 return
             }
 
-            // phase 2: probing each entry's type
-            if (batteryPath === "") {
+            if (source.includes("/type")) {
                 if (out === "Battery") {
                     batteryPath = "/sys/class/power_supply/" + batteryEntries[probeIdx]
-                    switchToPolling()
+                    startPolling()
                 } else {
                     probeIdx++
                     if (probeIdx < batteryEntries.length) {
                         probeNext()
                     } else {
                         noBattery = true
-                        batterySource.connectedSources = []
                     }
                 }
+                disconnectSource(source)
                 return
             }
 
-            // phase 3: polling
             if (source.includes("power_now")) {
                 var raw = parseFloat(out)
                 if (!isNaN(raw)) watts = raw / 1000000
+                disconnectSource(source)
             }
             if (source.includes("status")) {
                 batteryStatus = out
+                disconnectSource(source)
+            }
+        }
+    }
+
+    Timer {
+        id: pollTimer
+        interval: settings.pollingSeconds * 1000
+        repeat: true
+        running: false
+        onTriggered: {
+            if (batteryPath !== "") {
+                batterySource.connectSource("cat " + batteryPath + "/power_now")
+                batterySource.connectSource("cat " + batteryPath + "/status")
             }
         }
     }
 
     function probeNext() {
-        batterySource.connectedSources = ["cat /sys/class/power_supply/" + batteryEntries[probeIdx] + "/type"]
+        batterySource.connectSource("cat /sys/class/power_supply/" + batteryEntries[probeIdx] + "/type")
     }
 
-    function switchToPolling() {
-        batterySource.connectedSources = [
-            "cat " + batteryPath + "/power_now",
-            "cat " + batteryPath + "/status"
-        ]
+    function startPolling() {
+        pollTimer.restart()
+        pollTimer.triggered()
     }
 
     function refresh() {
+        pollTimer.stop()
         batteryPath = ""
         noBattery = false
         batteryEntries = []
         probeIdx = 0
-        batterySource.connectedSources = []
-        batterySource.connectedSources = ["ls /sys/class/power_supply/"]
+        batterySource.connectSource("ls /sys/class/power_supply/")
     }
 
     function roundedSignificant(value, digits) {
@@ -151,7 +157,7 @@ PlasmoidItem {
                 || hasOldTokens(settings.otherFormat)) {
             resetFormats();
         }
-        batterySource.connectedSources = ["ls /sys/class/power_supply/"]
+        batterySource.connectSource("ls /sys/class/power_supply/")
     }
 
     Settings {
@@ -167,9 +173,9 @@ PlasmoidItem {
         property string otherFormat: root.defaultOtherFormat
 
         onPollingSecondsChanged: {
-            var s = batterySource.connectedSources;
-            batterySource.connectedSources = [];
-            batterySource.connectedSources = s;
+            if (pollTimer.running) {
+                pollTimer.restart();
+            }
         }
     }
 
