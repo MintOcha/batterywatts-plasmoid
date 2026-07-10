@@ -5,72 +5,23 @@ import org.kde.kirigami as Kirigami
 import org.kde.plasma.components as PlasmaComponents
 import org.kde.plasma.extras as PlasmaExtras
 import org.kde.plasma.plasmoid
-import org.kde.plasma.plasma5support as Plasma5Support
 
 PlasmoidItem {
     id: root
 
     preferredRepresentation: compactRepresentation
 
-    // battery state
-    property var batteryEntries: []
-    property real watts: 0
-    property string batteryStatus: "Unknown"
-    property bool noBattery: false
-    property int probeIdx: 0
-    property string batteryPath: ""
-
     readonly property string defaultChargingFormat: "⚡ +{watts} W"
     readonly property string defaultDischargingFormat: "🔋 -{watts} W"
     readonly property string defaultFullFormat: "✓ {watts} W"
     readonly property string defaultOtherFormat: "🔌 {watts} W"
 
-    Plasma5Support.DataSource {
-        id: batterySource
-        engine: "executable"
-        connectedSources: []
-        interval: 0
+    BatteryMetrics {
+        id: batteryMetrics
+    }
 
-        onNewData: (source, data) => {
-            var out = String(data["stdout"] || "").trim()
-
-            if (source === "ls /sys/class/power_supply/") {
-                batteryEntries = out.split(/\s+/).filter(function(e) { return e.length > 0 })
-                noBattery = batteryEntries.length === 0
-                if (!noBattery) {
-                    probeIdx = 0
-                    probeNext()
-                }
-                disconnectSource(source)
-                return
-            }
-
-            if (source.includes("/type")) {
-                if (out === "Battery") {
-                    batteryPath = "/sys/class/power_supply/" + batteryEntries[probeIdx]
-                    startPolling()
-                } else {
-                    probeIdx++
-                    if (probeIdx < batteryEntries.length) {
-                        probeNext()
-                    } else {
-                        noBattery = true
-                    }
-                }
-                disconnectSource(source)
-                return
-            }
-
-            if (source.includes("power_now")) {
-                var raw = parseFloat(out)
-                if (!isNaN(raw)) watts = raw / 1000000
-                disconnectSource(source)
-            }
-            if (source.includes("status")) {
-                batteryStatus = out
-                disconnectSource(source)
-            }
-        }
+    ConfigDevice {
+        id: configDevice
     }
 
     Timer {
@@ -79,29 +30,21 @@ PlasmoidItem {
         repeat: true
         running: false
         onTriggered: {
-            if (batteryPath !== "") {
-                batterySource.connectSource("cat " + batteryPath + "/power_now")
-                batterySource.connectSource("cat " + batteryPath + "/status")
-            }
+            batteryMetrics.refresh()
         }
     }
 
-    function probeNext() {
-        batterySource.connectSource("cat /sys/class/power_supply/" + batteryEntries[probeIdx] + "/type")
-    }
-
-    function startPolling() {
-        pollTimer.restart()
-        pollTimer.triggered()
+    Timer {
+        id: noTurboTimer
+        interval: settings.pollingSeconds * 1000
+        repeat: true
+        running: true
+        onTriggered: configDevice.updateIntelPstate()
     }
 
     function refresh() {
-        pollTimer.stop()
-        batteryPath = ""
-        noBattery = false
-        batteryEntries = []
-        probeIdx = 0
-        batterySource.connectSource("ls /sys/class/power_supply/")
+        batteryMetrics.rediscover()
+        configDevice.updateIntelPstate()
     }
 
     function roundedSignificant(value, digits) {
@@ -111,11 +54,15 @@ PlasmoidItem {
     }
 
     function formattedWatts() {
-        const value = Math.abs(watts);
+        const value = Math.abs(batteryMetrics.watts);
         if (settings.precisionMode === 1) {
             return roundedSignificant(value, Math.max(1, settings.precisionValue));
         }
         return value.toFixed(Math.max(0, settings.precisionValue));
+    }
+
+    function detailText() {
+        return displayText() + " · ⏳ " + batteryMetrics.formattedRemainingTime();
     }
 
     function formatTemplate(templateText) {
@@ -123,15 +70,15 @@ PlasmoidItem {
     }
 
     function activeTemplate() {
-        if (batteryStatus === "Charging") return settings.chargingFormat;
-        if (batteryStatus === "Discharging") return settings.dischargingFormat;
-        if (batteryStatus === "Full") return settings.fullFormat;
+        if (batteryMetrics.batteryStatus === "Charging") return settings.chargingFormat;
+        if (batteryMetrics.batteryStatus === "Discharging") return settings.dischargingFormat;
+        if (batteryMetrics.batteryStatus === "Full") return settings.fullFormat;
         return settings.otherFormat;
     }
 
     function displayText() {
-        if (noBattery) return "N/A"
-        if (batteryPath === "") return "…"
+        if (batteryMetrics.noBattery) return "N/A"
+        if (batteryMetrics.batteryPath === "") return "…"
         return formatTemplate(activeTemplate());
     }
 
@@ -157,7 +104,8 @@ PlasmoidItem {
                 || hasOldTokens(settings.otherFormat)) {
             resetFormats();
         }
-        batterySource.connectSource("ls /sys/class/power_supply/")
+        refresh()
+        pollTimer.start()
     }
 
     Settings {
@@ -220,14 +168,16 @@ PlasmoidItem {
 
                 PlasmaComponents.Label {
                     Layout.fillWidth: true
-                    text: root.displayText()
+                    text: root.detailText()
                     elide: Text.ElideRight
                     font.pixelSize: Kirigami.Theme.defaultFont.pixelSize + 2
                 }
 
                 PlasmaComponents.Label {
                     Layout.fillWidth: true
-                    text: noBattery ? "No battery detected" : (batteryStatus + " • " + batteryPath)
+                    text: batteryMetrics.noBattery
+                        ? "No battery detected"
+                        : (batteryMetrics.batteryStatus + " • " + batteryMetrics.batteryPath)
                     elide: Text.ElideMiddle
                     font: Kirigami.Theme.smallFont
                     opacity: 0.75
@@ -241,6 +191,19 @@ PlasmoidItem {
             columns: 2
             columnSpacing: Kirigami.Units.smallSpacing
             rowSpacing: Kirigami.Units.smallSpacing
+
+            PlasmaComponents.Label {
+                text: "No turbo"
+                visible: configDevice.intelPstateAvailable
+            }
+
+            PlasmaComponents.Switch {
+                Layout.fillWidth: true
+                text: checked ? "On" : "Off"
+                checked: configDevice.intelPstateNoTurboEnabled
+                visible: configDevice.intelPstateAvailable
+                onClicked: configDevice.setIntelPstateNoTurbo(checked)
+            }
 
             PlasmaComponents.Label { text: "Precision" }
 
