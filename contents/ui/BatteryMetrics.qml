@@ -21,6 +21,9 @@ Item {
     property real chargeFullAh: -1
     property real voltageV: -1
     property real currentA: -1
+    property bool powerNowValid: false
+    property bool voltageReadingValid: false
+    property bool currentReadingValid: false
 
     readonly property var pollFiles: [
         "power_now",
@@ -63,6 +66,7 @@ Item {
             return
         }
 
+        resetPollReadings()
         for (var i = 0; i < pollFiles.length; i++) {
             batterySource.connectSource("cat " + batteryPath + "/" + pollFiles[i])
         }
@@ -112,14 +116,27 @@ Item {
         chargeFullAh = -1
         voltageV = -1
         currentA = -1
+        powerNowValid = false
+        voltageReadingValid = false
+        currentReadingValid = false
         batteryStatus = "Unknown"
+    }
+
+    function resetPollReadings() {
+        watts = 0
+        powerNowValid = false
+        voltageReadingValid = false
+        currentReadingValid = false
     }
 
     function updateReading(source, output) {
         if (source.includes("power_now")) {
             var powerRaw = parseFloat(output)
-            if (!isNaN(powerRaw)) {
+            if (isFinite(powerRaw) && powerRaw > 0) {
+                powerNowValid = true
                 watts = powerRaw / 1000000
+            } else if (!powerNowValid) {
+                updateFallbackPower()
             }
             return
         }
@@ -146,14 +163,15 @@ Item {
 
         if (source.includes("voltage_now")) {
             voltageV = toMegaUnit(output)
+            voltageReadingValid = isFinite(voltageV) && voltageV > 0
+            updateFallbackPower()
             return
         }
 
         if (source.includes("current_now")) {
             currentA = toMegaUnit(output)
-            if (watts <= 0 && currentA > 0 && voltageV > 0) {
-                watts = currentA * voltageV
-            }
+            currentReadingValid = isFinite(currentA) && currentA > 0
+            updateFallbackPower()
             return
         }
 
@@ -190,7 +208,18 @@ Item {
 
     function toMegaUnit(output) {
         var raw = parseFloat(output)
-        return isNaN(raw) ? -1 : raw / 1000000
+        return !isFinite(raw) ? -1 : raw / 1000000
+    }
+
+    function updateFallbackPower() {
+        if (powerNowValid) return
+
+        if (currentReadingValid && voltageReadingValid &&
+                isFinite(currentA) && isFinite(voltageV)) {
+            watts = currentA * voltageV
+        } else {
+            watts = 0
+        }
     }
 
     function remainingHours() {
