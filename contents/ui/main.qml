@@ -35,16 +35,16 @@ PlasmoidItem {
     }
 
     Timer {
-        id: noTurboTimer
+        id: powerCapTimer
         interval: settings.pollingSeconds * 1000
         repeat: true
         running: true
-        onTriggered: configDevice.updateIntelPstate()
+        onTriggered: configDevice.updatePowerCap()
     }
 
     function refresh() {
         batteryMetrics.rediscover()
-        configDevice.updateIntelPstate()
+        configDevice.updatePowerCap()
     }
 
     function roundedSignificant(value, digits) {
@@ -54,6 +54,7 @@ PlasmoidItem {
     }
 
     function formattedWatts() {
+        if (!isFinite(batteryMetrics.watts)) return "NaN";
         const value = Math.abs(batteryMetrics.watts);
         if (settings.precisionMode === 1) {
             return roundedSignificant(value, Math.max(1, settings.precisionValue));
@@ -62,6 +63,7 @@ PlasmoidItem {
     }
 
     function detailText() {
+        if (batteryMetrics.noBattery) return displayText();
         return displayText() + " · ⏳ " + batteryMetrics.formattedRemainingTime();
     }
 
@@ -77,8 +79,8 @@ PlasmoidItem {
     }
 
     function displayText() {
-        if (batteryMetrics.noBattery) return "N/A"
-        if (batteryMetrics.batteryPath === "") return "…"
+        if (batteryMetrics.noBattery) return formatTemplate(settings.otherFormat);
+        if (batteryMetrics.batteryPath === "") return "…";
         return formatTemplate(activeTemplate());
     }
 
@@ -176,7 +178,7 @@ PlasmoidItem {
                 PlasmaComponents.Label {
                     Layout.fillWidth: true
                     text: batteryMetrics.noBattery
-                        ? "No battery detected"
+                        ? "Desktop (wall plugged)"
                         : (batteryMetrics.batteryStatus + " • " + batteryMetrics.batteryPath)
                     elide: Text.ElideMiddle
                     font: Kirigami.Theme.smallFont
@@ -193,16 +195,16 @@ PlasmoidItem {
             rowSpacing: Kirigami.Units.smallSpacing
 
             PlasmaComponents.Label {
-                text: "No turbo"
-                visible: configDevice.intelPstateAvailable
+                text: "Cap power (slow)"
+                visible: configDevice.powerCapAvailable
             }
 
             PlasmaComponents.Switch {
                 Layout.fillWidth: true
                 text: checked ? "On" : "Off"
-                checked: configDevice.intelPstateNoTurboEnabled
-                visible: configDevice.intelPstateAvailable
-                onClicked: configDevice.setIntelPstateNoTurbo(checked)
+                checked: configDevice.powerCapEnabled
+                visible: configDevice.powerCapAvailable
+                onClicked: configDevice.setPowerCap(checked)
             }
 
             PlasmaComponents.Label { text: "Precision" }

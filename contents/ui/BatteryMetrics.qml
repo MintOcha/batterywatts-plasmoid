@@ -14,13 +14,14 @@ Item {
     property int probeIdx: 0
     property string batteryPath: ""
 
-    property real watts: 0
-    property real energyNowWh: -1
-    property real energyFullWh: -1
-    property real chargeNowAh: -1
-    property real chargeFullAh: -1
-    property real voltageV: -1
-    property real currentA: -1
+    property real watts: NaN
+    property bool powerNowValid: false
+    property real energyNowWh: NaN
+    property real energyFullWh: NaN
+    property real chargeNowAh: NaN
+    property real chargeFullAh: NaN
+    property real voltageV: NaN
+    property real currentA: NaN
 
     readonly property var pollFiles: [
         "power_now",
@@ -62,12 +63,11 @@ Item {
             }
             return
         }
-
+        powerNowValid = false
         for (var i = 0; i < pollFiles.length; i++) {
             batterySource.connectSource("cat " + batteryPath + "/" + pollFiles[i])
         }
     }
-
     function handleSource(source, output) {
         if (source === "ls /sys/class/power_supply/") {
             batteryEntries = output.split(/\s+/).filter(function(entry) {
@@ -77,6 +77,8 @@ Item {
             if (!noBattery) {
                 probeIdx = 0
                 probeNext()
+            } else {
+                handleNoBattery()
             }
             return
         }
@@ -92,10 +94,9 @@ Item {
             if (probeIdx < batteryEntries.length) {
                 probeNext()
             } else {
-                noBattery = true
+                handleNoBattery()
             }
             return
-        }
 
         updateReading(source, output)
     }
@@ -104,22 +105,32 @@ Item {
         batterySource.connectSource("cat /sys/class/power_supply/" + batteryEntries[probeIdx] + "/type")
     }
 
-    function resetReadings() {
-        watts = 0
-        energyNowWh = -1
-        energyFullWh = -1
-        chargeNowAh = -1
-        chargeFullAh = -1
-        voltageV = -1
-        currentA = -1
-        batteryStatus = "Unknown"
+    function handleNoBattery() {
+        noBattery = true
+        batteryStatus = "Desktop"
+        watts = NaN
     }
 
+    function resetReadings() {
+        watts = NaN
+        powerNowValid = false
+        energyNowWh = NaN
+        energyFullWh = NaN
+        chargeNowAh = NaN
+        chargeFullAh = NaN
+        voltageV = NaN
+        currentA = NaN
+        batteryStatus = "Unknown"
+    }
     function updateReading(source, output) {
         if (source.includes("power_now")) {
             var powerRaw = parseFloat(output)
-            if (!isNaN(powerRaw)) {
+            if (isFinite(powerRaw) && powerRaw > 0) {
                 watts = powerRaw / 1000000
+                powerNowValid = true
+            } else {
+                powerNowValid = false
+                updateFallbackWatts()
             }
             return
         }
@@ -146,17 +157,19 @@ Item {
 
         if (source.includes("voltage_now")) {
             voltageV = toMegaUnit(output)
+            if (!powerNowValid) {
+                updateFallbackWatts()
+            }
             return
         }
 
         if (source.includes("current_now")) {
             currentA = toMegaUnit(output)
-            if (watts <= 0 && currentA > 0 && voltageV > 0) {
-                watts = currentA * voltageV
+            if (!powerNowValid) {
+                updateFallbackWatts()
             }
             return
         }
-
         if (source.includes("status")) {
             batteryStatus = output
         }
@@ -190,8 +203,21 @@ Item {
 
     function toMegaUnit(output) {
         var raw = parseFloat(output)
-        return isNaN(raw) ? -1 : raw / 1000000
+        return isFinite(raw) ? raw / 1000000 : NaN
     }
+    function updateFallbackWatts() {
+        if (powerNowValid) return
+
+        var absCurrent = Math.abs(currentA)
+        var absVoltage = Math.abs(voltageV)
+
+        if (isFinite(absCurrent) && isFinite(absVoltage) && absCurrent > 0 && absVoltage > 0 && voltageV > 0) {
+            watts = absCurrent * absVoltage
+        } else {
+            watts = NaN
+        }
+    }
+
 
     function remainingHours() {
         var powerWatts = currentPowerWatts()
@@ -212,20 +238,29 @@ Item {
     }
 
     function currentPowerWatts() {
-        if (watts > 0) return watts
-        if (currentA > 0 && voltageV > 0) return currentA * voltageV
+        if (isFinite(watts) && watts > 0) return watts
+        var absCurrent = Math.abs(currentA)
+        if (isFinite(absCurrent) && absCurrent > 0 && isFinite(voltageV) && voltageV > 0) {
+            return absCurrent * voltageV
+        }
         return -1
     }
 
     function currentEnergyWh() {
-        if (energyNowWh >= 0) return energyNowWh
-        if (chargeNowAh >= 0 && voltageV > 0) return chargeNowAh * voltageV
+        if (isFinite(energyNowWh) && energyNowWh >= 0) return energyNowWh
+        var absCharge = Math.abs(chargeNowAh)
+        if (isFinite(absCharge) && absCharge >= 0 && isFinite(voltageV) && voltageV > 0) {
+            return absCharge * voltageV
+        }
         return -1
     }
 
     function fullEnergyWh() {
-        if (energyFullWh >= 0) return energyFullWh
-        if (chargeFullAh >= 0 && voltageV > 0) return chargeFullAh * voltageV
+        if (isFinite(energyFullWh) && energyFullWh >= 0) return energyFullWh
+        var absCharge = Math.abs(chargeFullAh)
+        if (isFinite(absCharge) && absCharge >= 0 && isFinite(voltageV) && voltageV > 0) {
+            return absCharge * voltageV
+        }
         return -1
     }
 }
